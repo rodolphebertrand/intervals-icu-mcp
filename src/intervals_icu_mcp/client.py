@@ -722,10 +722,15 @@ class ICUClient:
             params["types"] = ",".join(streams)
 
         response = await self._request("GET", f"/activity/{activity_id}/streams", params=params)
-        data = response.json()
-        if isinstance(data, list):
-            data = {item["type"]: item["data"] for item in data if "type" in item and "data" in item}
-        return ActivityStreams(**data)
+        # API returns a list of stream objects: [{type, name, data, ...}, ...]
+        # Convert to a dict keyed by stream type for the ActivityStreams model
+        streams_dict: dict[str, Any] = {}
+        for stream_obj in response.json():
+            stream_type = stream_obj.get("type")
+            stream_data = stream_obj.get("data")
+            if stream_type and stream_data is not None:
+                streams_dict[stream_type] = stream_data
+        return ActivityStreams(**streams_dict)
 
     async def get_best_efforts(
         self,
